@@ -1,0 +1,29 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.9'
+}
+
+group 'draylar'
+version '1.0.0'
+
+javafx {
+    version = "15.0.1"
+    modules = [ 'javafx.base', 'javafx.graphics', 'javafx.controls', 'javafx.fxml', 'javafx.swing', 'javafx.web' ]
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    implementation 'com.github.rkalla:imgscalr:4.2-release'
+    compile 'org.jetbrains:annotations:16.0.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+}
+
+test {
+    useJUnitPlatform()
+}
