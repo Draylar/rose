@@ -14,6 +14,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import netscape.javascript.JSObject;
@@ -41,6 +42,7 @@ public class Rose extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         initializeRoseLibraryFolder();
+        yeet();
 
         // initialize UI
         Parent root = FXMLLoader.load(getClass().getClassLoader().getResource("root.fxml"));
@@ -112,7 +114,7 @@ public class Rose extends Application {
         });
 
         // load
-        stage.show();
+//        stage.show();
     }
 
     public void extractContentFile(Path from, Path to) {
@@ -152,6 +154,66 @@ public class Rose extends Application {
                 ioException.printStackTrace();
             }
         }
+    }
+
+    public static void yeet() {
+        // calculate pages
+        List<String> elements = new ArrayList<>();
+        elements.add("<p>hi</p>");
+        elements.add("<p>hi</p>");
+        elements.add("<p>hi</p>");
+
+        int height = 1300;
+        WebView throwaway = new WebView();
+        throwaway.getEngine().setUserStyleSheetLocation(Rose.class.getClassLoader().getResource("style/main.css").toString());
+
+        throwaway.getEngine().getLoadWorker().stateProperty().addListener((value, old, newState) -> {
+            if(newState == Worker.State.SUCCEEDED) {
+                JSObject window = (JSObject) throwaway.getEngine().executeScript("window");
+                window.setMember("java", new JavaBridge());
+                window.setMember("data", elements.toString());
+                window.setMember("height", height);
+
+
+                // override JS logging to redirect to our logger
+                throwaway.getEngine().executeScript("console.log = function(message)\n" +
+                        "{\n" +
+                        "    java.log(message);\n" +
+                        "};");
+
+                // test log
+                throwaway.getEngine().executeScript("console.log(\"hello, world\");");
+
+                // create initial function
+                throwaway.getEngine().executeScript(
+                        """
+                        function getNext() {
+                            const div = document.createElement("div");
+                            
+                            const values = data.split(", ");
+                            for(var i = 0; i < values.length; i++) {
+                                console.log(values[i]);
+                                div.innerHTML += values[i];
+                            }
+                            
+                            document.body.appendChild(div);
+                            console.log(values.length);
+                            console.log("Data: " + data);
+                            console.log("innerText: " + div.innerText);
+                            console.log("innerHTML: " + div.innerHTML);
+                            console.log(window.getComputedStyle(document.body).fontSize);
+                            div.style.height = "";
+                            return div.offsetHeight;
+                        }
+                        """
+                );
+
+                System.out.println("Height: " + throwaway.getEngine().executeScript("getNext()"));
+            }
+        });
+
+        throwaway.getEngine().loadContent("");
+        throwaway.getEngine().reload();
     }
 
     public static void open(Epub epub) {
@@ -217,4 +279,8 @@ public class Rose extends Application {
             }
         });
     }
+
+//    public static List<String> getNext(WebEngine throwaway, List<String> elements, int height) {
+//
+//    }
 }
