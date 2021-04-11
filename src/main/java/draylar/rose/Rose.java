@@ -181,55 +181,39 @@ public class Rose extends Application {
         // get vbox from display scene
         root.applyCss();
 
-        /*
-
-         When the .epub is loaded, we need to create a list of WebView, each of which describe a single page inside the application.
-
-         Potential alternatives:
-            - Display all HTML in a free-scrolling vertical document. For paging, lock the scroll bar and have clicks move the document down.
-                  Advantages:
-                      - Most "native" solution for .epub files, which are already websites
-                  Disadvantages:
-                      - Books are horizontal. Horizontal page-flip animations would not be possible.
-                      - No page-breaks with skipping unless we injected JS for moving to the next page
-
-            - Use CSS to display elements horizontally with breaks
-                   Advantages:
-                       - Already implemented
-                   Disadvantages:
-                       - Hard to disable scroll and side behavior
-                       - No concept of pages on the Java side
-        */
+        // When the .epub is loaded, we need to create a list of WebView, each of which describe a single page inside the application.
 
         List<WebView> pages = new ArrayList<>();
 
         // Find the HTML document.
         // TODO: more than 1 spine entry
-        String html = epub.readSection(epub.getSpineEntry(6));
-        String template = HTMLHelper.getTemplate(html);
-        HeightHelper helper = new HeightHelper();
-        pages.clear();
-        CompletableFuture<String[]> completableFuture = helper.get(html, root.getHeight() * .90f, root.getWidth() * .6);
         BorderPane finalRoot = root;
-        completableFuture.thenAccept(result -> {
-            for(String page : result) {
-                WebView from = WebViewHelper.from(String.format(template, page));
-                from.maxWidthProperty().bind(finalRoot.widthProperty().multiply(.6));
-                pages.add(from);
-            }
+        epub.getSpine().forEach(entry -> {
+            String html = epub.readSection(entry);
+            String template = HTMLHelper.getTemplate(html);
+            HeightHelper helper = new HeightHelper();
+            pages.clear();
+            CompletableFuture<String[]> completableFuture = helper.get(html, finalRoot.getHeight() * .90f, finalRoot.getWidth() * .6);
+            completableFuture.thenAccept(result -> {
+                for(String page : result) {
+                    WebView from = WebViewHelper.from(String.format(template, page));
+                    from.maxWidthProperty().bind(finalRoot.widthProperty().multiply(.6));
+                    pages.add(from);
+                }
 
-            // setup first page
-            if(!pages.isEmpty()) {
-                finalRoot.setCenter(pages.get(0));
-            }
-        });
+                // setup first page
+                if(!pages.isEmpty()) {
+                    finalRoot.setCenter(pages.get(0));
+                }
+            });
 
-        root.setOnKeyPressed(key -> {
-            if(key.getCode().equals(KeyCode.LEFT)) {
-                finalRoot.setCenter(pages.get(Math.max(0, pages.indexOf(finalRoot.getCenter()) - 1)));
-            } else if (key.getCode().equals(KeyCode.RIGHT)) {
-                finalRoot.setCenter(pages.get(Math.min(pages.size() - 1, pages.indexOf(finalRoot.getCenter()) + 1)));
-            }
+            finalRoot.setOnKeyPressed(key -> {
+                if(key.getCode().equals(KeyCode.LEFT)) {
+                    finalRoot.setCenter(pages.get(Math.max(0, pages.indexOf(finalRoot.getCenter()) - 1)));
+                } else if (key.getCode().equals(KeyCode.RIGHT)) {
+                    finalRoot.setCenter(pages.get(Math.min(pages.size() - 1, pages.indexOf(finalRoot.getCenter()) + 1)));
+                }
+            });
         });
     }
 }

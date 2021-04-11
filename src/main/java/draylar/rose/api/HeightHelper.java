@@ -34,7 +34,6 @@ public class HeightHelper {
 
                             const values = data.split(", ");
                             for(var i = 0; i < values.length; i++) {
-                                console.log(values[i]);
                                 div.innerHTML += values[i];
                             }
 
@@ -75,9 +74,6 @@ public class HeightHelper {
                         "{\n" +
                         "    java.log(message);\n" +
                         "};");
-//
-//                // test log
-                throwaway.getEngine().executeScript("console.log(\"hello, world\");");
 
                 // create initial function
                 throwaway.getEngine().executeScript(
@@ -86,10 +82,6 @@ public class HeightHelper {
                                                         
                                 function loadData() {
                                     splitData = allData.split("%and%");
-                                    
-                                    for(var line in splitData) {
-                                        console.log("line: " + splitData[line]);
-                                    }
                                 }
                                                         
                                 function getSize(data) { // data is a list of string tags
@@ -102,7 +94,6 @@ public class HeightHelper {
                                     document.body.appendChild(div);
                                     div.style.height = "";
                                     div.style.width = width;
-                                    console.log("Height of " + div.innerHTML + " is " + div.getBoundingClientRect().height);
                                     return div.offsetHeight;
                                 }
                                                         
@@ -132,36 +123,26 @@ public class HeightHelper {
                                             // TODO: overflow on the last page?
                                             currentElements.push(element);
                                             pages.push(currentElements.join(""))
-                                            console.log(pages[0]);
                                             return pages.join("%page%");
                                         }
                                                                 
                                         // Still have elements to process and we are under 500 length. Append it to the current list.
                                         else if (size < height) {
-                                            console.log("Appending element: " + element);
                                             currentElements.push(element);
                                         }
                                        
                                         // Over 500 with more elements to go-- push and go again. Do not append the current element to prevent overflow.
                                         else {
                                             pages.push(currentElements.join(""))
-                                            console.log("Size: " + size);
                                             currentElements = [] // clear current elements
                                         }
                                     }
                                     
                                     return pages.join("%page%")
                                 }
-                                
-                                // test
-                                // const l = []
-                                // l[0] = "<p id=\\"auto_bookmark_toc_top\\" class=\\"P__STAR__STAR__STAR__page_break\\"><span><span style=\\" font-weight: bold; font-size: 1.17em;\\">Chapter 1:<br/>The Con Artist Who Claimed to Be a God</span></span></p>",
-                                // console.log("yeet");
-                                // console.log(getSize(l));
                                 """
                 );
 
-                throwaway.getEngine().executeScript("console.log(5);");
                 throwaway.getEngine().executeScript("loadData();");
                 String s = throwaway.getEngine().executeScript("splitIntoPages()").toString();
                 String[] result = s.split("%page%");
