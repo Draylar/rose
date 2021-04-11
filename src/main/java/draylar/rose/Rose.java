@@ -209,11 +209,13 @@ public class Rose extends Application {
         String template = HTMLHelper.getTemplate(html);
         HeightHelper helper = new HeightHelper();
         pages.clear();
-        CompletableFuture<String[]> completableFuture = helper.get(html, root.getHeight() * .95f, root.getWidth() * .8);
+        CompletableFuture<String[]> completableFuture = helper.get(html, root.getHeight() * .90f, root.getWidth() * .6);
         BorderPane finalRoot = root;
         completableFuture.thenAccept(result -> {
             for(String page : result) {
-                pages.add(WebViewHelper.from(String.format(template, page)));
+                WebView from = WebViewHelper.from(String.format(template, page));
+                from.maxWidthProperty().bind(finalRoot.widthProperty().multiply(.6));
+                pages.add(from);
             }
 
             // setup first page

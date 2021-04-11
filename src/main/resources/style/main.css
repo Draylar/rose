@@ -2,7 +2,8 @@ html, body {
     max-width: 100%;
     overflow-x: hidden;
     font-size: 20px;
-    background-color: purple;
+    background-color: #d9d9d9;
+    padding-top: 25px;
 }
 
 #sidebarContent {
@@ -11,6 +12,6 @@ html, body {
 }
 
 p {
-    margin: 0;
+    margin: 5px;
     text-indent: 50px;
 }
