@@ -1,12 +1,16 @@
 html, body {
     max-width: 100%;
     overflow-x: hidden;
-    color: red;
-    background-color: blue;
     font-size: 20px;
+    background-color: purple;
 }
 
 #sidebarContent {
     -fx-background-color: white;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 1, 0);
+}
+
+p {
+    margin: 0;
+    text-indent: 50px;
 }

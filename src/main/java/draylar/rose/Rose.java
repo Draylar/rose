@@ -1,7 +1,10 @@
 package draylar.rose;
 
 import draylar.rose.api.Epub;
+import draylar.rose.api.HTMLHelper;
+import draylar.rose.api.HeightHelper;
 import draylar.rose.api.JavaBridge;
+import draylar.rose.api.web.WebViewHelper;
 import draylar.rose.fx.BookIconNode;
 import draylar.rose.fx.Sidebar;
 import javafx.application.Application;
@@ -12,8 +15,11 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.input.KeyCode;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
@@ -25,8 +31,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -36,13 +44,13 @@ public class Rose extends Application {
     public static final Path ROSE_LIBRARY_DATA_PATH = Paths.get(System.getProperty("user.home"), "Rose Library", "Data");
     public static final Logger LOGGER = Logger.getLogger("Rose");
     public static Scene scene;
+    public static final List<WebView> pages = new ArrayList<>();
 
     private List<Epub> loaded = new ArrayList<>();
 
     @Override
     public void start(Stage stage) throws Exception {
         initializeRoseLibraryFolder();
-        yeet();
 
         // initialize UI
         Parent root = FXMLLoader.load(getClass().getClassLoader().getResource("root.fxml"));
@@ -114,7 +122,7 @@ public class Rose extends Application {
         });
 
         // load
-//        stage.show();
+        stage.show();
     }
 
     public void extractContentFile(Path from, Path to) {
@@ -156,131 +164,70 @@ public class Rose extends Application {
         }
     }
 
-    public static void yeet() {
-        // calculate pages
-        List<String> elements = new ArrayList<>();
-        elements.add("<p>hi</p>");
-        elements.add("<p>hi</p>");
-        elements.add("<p>hi</p>");
-
-        int height = 1300;
-        WebView throwaway = new WebView();
-        throwaway.getEngine().setUserStyleSheetLocation(Rose.class.getClassLoader().getResource("style/main.css").toString());
-
-        throwaway.getEngine().getLoadWorker().stateProperty().addListener((value, old, newState) -> {
-            if(newState == Worker.State.SUCCEEDED) {
-                JSObject window = (JSObject) throwaway.getEngine().executeScript("window");
-                window.setMember("java", new JavaBridge());
-                window.setMember("data", elements.toString());
-                window.setMember("height", height);
-
-
-                // override JS logging to redirect to our logger
-                throwaway.getEngine().executeScript("console.log = function(message)\n" +
-                        "{\n" +
-                        "    java.log(message);\n" +
-                        "};");
-
-                // test log
-                throwaway.getEngine().executeScript("console.log(\"hello, world\");");
-
-                // create initial function
-                throwaway.getEngine().executeScript(
-                        """
-                        function getNext() {
-                            const div = document.createElement("div");
-                            
-                            const values = data.split(", ");
-                            for(var i = 0; i < values.length; i++) {
-                                console.log(values[i]);
-                                div.innerHTML += values[i];
-                            }
-                            
-                            document.body.appendChild(div);
-                            console.log(values.length);
-                            console.log("Data: " + data);
-                            console.log("innerText: " + div.innerText);
-                            console.log("innerHTML: " + div.innerHTML);
-                            console.log(window.getComputedStyle(document.body).fontSize);
-                            div.style.height = "";
-                            return div.offsetHeight;
-                        }
-                        """
-                );
-
-                System.out.println("Height: " + throwaway.getEngine().executeScript("getNext()"));
-            }
-        });
-
-        throwaway.getEngine().loadContent("");
-        throwaway.getEngine().reload();
-    }
-
     public static void open(Epub epub) {
-        Parent root = null;
+        BorderPane root = null;
 
+        // Attempt to load the read.fxml file.
+        // TODO: error handling/response for the user to see if something goes wrong?
         try {
             root = FXMLLoader.load(Rose.class.getClassLoader().getResource("read.fxml"));
         } catch (IOException ioException) {
             ioException.printStackTrace();
         }
 
+        // Update the root of the Rose JavaFX window to display our epub content.
         scene.setRoot(root);
 
-        // apply epub contents to webview
+        // get vbox from display scene
+        root.applyCss();
 
-        scene.getStylesheets().add("style/main.css");
-        root.applyCss(); // force load CSS so the following lookup call works (lookups don't work until css is applied)
-        WebView view = (WebView) root.lookup("#html");
-        scene.getStylesheets().add("style/main.css");
+        /*
 
-        String content = "";
-        for(int i = 0 ; i <= 1_000_0; i++) {
-            content += "hiiiiiiiiiiiiiiiiiiiiidddddddihiiiiiiiiiiiiiiiiiiiiidddddddihiiiiiiiiiiiiiiiiiiiiidddddddihiiiiiiiiiiiiiiiiiiiiidddddddi\n";
-        }
+         When the .epub is loaded, we need to create a list of WebView, each of which describe a single page inside the application.
 
-        view.getEngine().loadContent(content);
-        view.getEngine().getLoadWorker().stateProperty().addListener((value, old, newState) -> {
-            if(newState == Worker.State.SUCCEEDED) {
-                JSObject window = (JSObject) view.getEngine().executeScript("window");
-                window.setMember("java", new JavaBridge());
+         Potential alternatives:
+            - Display all HTML in a free-scrolling vertical document. For paging, lock the scroll bar and have clicks move the document down.
+                  Advantages:
+                      - Most "native" solution for .epub files, which are already websites
+                  Disadvantages:
+                      - Books are horizontal. Horizontal page-flip animations would not be possible.
+                      - No page-breaks with skipping unless we injected JS for moving to the next page
 
-                // override JS logging to redirect to our logger
-                view.getEngine().executeScript("console.log = function(message)\n" +
-                        "{\n" +
-                        "    java.log(message);\n" +
-                        "};");
+            - Use CSS to display elements horizontally with breaks
+                   Advantages:
+                       - Already implemented
+                   Disadvantages:
+                       - Hard to disable scroll and side behavior
+                       - No concept of pages on the Java side
+        */
 
-                // test log
-                view.getEngine().executeScript("console.log(\"hello, world\");");
+        List<WebView> pages = new ArrayList<>();
 
-                // apply script
-                view.getEngine().executeScript("""
-                        var desiredHeight = 850;
-                        var desiredWidth = 1350;
-                        var bodyID = document.getElementsByTagName('body')[0];
-                        totalHeight = bodyID.offsetHeight;
-                        pageCount = Math.floor(totalHeight/desiredHeight) + 1;
-                        bodyID.style.padding = 10; //(optional) prevents clipped letters around the edges
-                        bodyID.style.width = desiredWidth * pageCount;
-                        bodyID.style.height = desiredHeight;
-                        bodyID.style.columnCount = pageCount;
-                        console.log(totalHeight + " : " + desiredHeight + " : " + pageCount);
-                                """
-                );
+        // Find the HTML document.
+        // TODO: more than 1 spine entry
+        String html = epub.readSection(epub.getSpineEntry(6));
+        String template = HTMLHelper.getTemplate(html);
+        HeightHelper helper = new HeightHelper();
+        pages.clear();
+        CompletableFuture<String[]> completableFuture = helper.get(html, root.getHeight() * .95f, root.getWidth() * .8);
+        BorderPane finalRoot = root;
+        completableFuture.thenAccept(result -> {
+            for(String page : result) {
+                pages.add(WebViewHelper.from(String.format(template, page)));
+            }
+
+            // setup first page
+            if(!pages.isEmpty()) {
+                finalRoot.setCenter(pages.get(0));
             }
         });
 
-        root.setOnMouseClicked(event -> {
-            if(event.getX() < 100) {
-                view.getEngine().executeScript("document.body.scrollLeft -= 1350");
-            } else if (event.getX() > scene.getWidth() - 100) {
-                view.getEngine().executeScript("document.body.scrollLeft += 1350");
+        root.setOnKeyPressed(key -> {
+            if(key.getCode().equals(KeyCode.LEFT)) {
+                finalRoot.setCenter(pages.get(Math.max(0, pages.indexOf(finalRoot.getCenter()) - 1)));
+            } else if (key.getCode().equals(KeyCode.RIGHT)) {
+                finalRoot.setCenter(pages.get(Math.min(pages.size() - 1, pages.indexOf(finalRoot.getCenter()) + 1)));
             }
         });
     }
-
-//    public static List<String> getNext(WebEngine throwaway, List<String> elements, int height) {
-//
-//    }
 }

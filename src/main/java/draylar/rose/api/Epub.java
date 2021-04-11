@@ -1,9 +1,14 @@
 package draylar.rose.api;
 
 import draylar.rose.Rose;
+import draylar.rose.api.book.ManifestEntry;
+import draylar.rose.api.book.SpineEntry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 import javax.imageio.ImageIO;
@@ -17,10 +22,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -34,6 +36,8 @@ public class Epub {
     private final Path root;
     @Nullable private EpubMetadata metadata;
     @Nullable private BufferedImage coverImage;
+    private List<ManifestEntry> manifest;
+    private List<SpineEntry> spine;
 
     /**
      * Constructs a {@link Epub} from the given {@link Path}.
@@ -295,6 +299,76 @@ public class Epub {
         return false;
     }
 
+    public void loadManifest(boolean force) {
+        if(this.manifest != null && !force) {
+            return;
+        }
+
+        manifest = new ArrayList<>();
+
+        // Load content.opf XML file
+        @Nullable String content_opf = readContentOPF();
+
+        if(content_opf != null) {
+            // Parse XML
+            try {
+                DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                Document parsed = builder.parse(new InputSource(new StringReader(content_opf)));
+                parsed.normalize();
+
+                // Grab the manifest tag [<manifest>]
+                Element manifestNode = (Element) parsed.getElementsByTagName("manifest").item(0);
+                NodeList manifestChildren = manifestNode.getChildNodes();
+                for(int i = 0; i < manifestChildren.getLength(); i++) {
+                    Node entry = manifestChildren.item(i);
+
+                    if(entry.getNodeType() == Node.ELEMENT_NODE) {
+                        String id = entry.getAttributes().getNamedItem("id").getTextContent();
+                        String href = entry.getAttributes().getNamedItem("href").getTextContent();
+                        String mediaType = entry.getAttributes().getNamedItem("media-type").getTextContent();
+                        manifest.add(new ManifestEntry(id, href, mediaType));
+                    }
+                }
+            } catch (Exception any) {
+                any.printStackTrace();
+            }
+        }
+    }
+
+    public void loadSpine(boolean force) {
+        if(this.spine != null && !force) {
+            return;
+        }
+
+        spine = new ArrayList<>();
+
+        // Load content.opf XML file
+        @Nullable String content_opf = readContentOPF();
+
+        if(content_opf != null) {
+            // Parse XML
+            try {
+                DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                Document parsed = builder.parse(new InputSource(new StringReader(content_opf)));
+                parsed.normalize();
+
+                // Grab the manifest tag [<manifest>]
+                Element manifestNode = (Element) parsed.getElementsByTagName("spine").item(0);
+                NodeList manifestChildren = manifestNode.getChildNodes();
+                for(int i = 0; i < manifestChildren.getLength(); i++) {
+                    Node entry = manifestChildren.item(i);
+
+                    if(entry.getNodeType() == Node.ELEMENT_NODE) {
+                        String idref = entry.getAttributes().getNamedItem("idref").getTextContent();
+                        spine.add(new SpineEntry(idref));
+                    }
+                }
+            } catch (Exception any) {
+                any.printStackTrace();
+            }
+        }
+    }
+
     @NotNull
     public EpubMetadata getMetadata() {
         if(metadata == null) {
@@ -304,6 +378,56 @@ public class Epub {
         return metadata;
     }
 
+    @NotNull
+    public List<ManifestEntry> getManifest() {
+        if(manifest == null) {
+            loadManifest(true);
+        }
+
+        return manifest;
+    }
+
+    public List<SpineEntry> getSpine() {
+        if(spine == null) {
+            loadSpine(true);
+        }
+
+        return spine;
+    }
+
+    public int getSpineCount() {
+        return getSpine().size();
+    }
+
+    /**
+     * @param index index to retrieve page from
+     * @return the spine entry at the given index (zero-indexed)
+     * @throws IndexOutOfBoundsException if the index is greater than the number of spine entries or less than 0
+     */
+    public SpineEntry getSpineEntry(int index) {
+        if(index < 0) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        if(index >= getSpineCount()) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        return getSpine().get(index);
+    }
+
+    public String readSection(SpineEntry spineEntry) {
+        Optional<ManifestEntry> first = getManifest().stream().filter(entry -> entry.getId().equals(spineEntry.getIdref())).findFirst();
+
+        // If a manifest entry was found that matches the given spine entry, read the contents and return it.
+        if(first.isPresent()) {
+            return read(path -> path.toString().contains(first.get().getHref()));
+        }
+
+        return "";
+    }
+
+    @Nullable
     public BufferedImage getCoverImage() {
         return coverImage;
     }
