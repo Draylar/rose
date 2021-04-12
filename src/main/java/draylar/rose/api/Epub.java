@@ -46,6 +46,7 @@ public class Epub {
     public Epub(Path root) {
         this.root = root.toAbsolutePath();
         loadMetadata(true);
+        extractImages();
     }
 
     /**
@@ -150,6 +151,10 @@ public class Epub {
     public Path getDataDirectory() {
         String fileName = root.getFileName().toString();
         return Paths.get(Rose.ROSE_LIBRARY_DATA_PATH.toString(), fileName.substring(0, fileName.lastIndexOf(".")));
+    }
+
+    public Path getImageDirectory() {
+        return Paths.get(getDataDirectory().toString(), "Images");
     }
 
     // time to read image from .epub directly: 161ms
@@ -425,6 +430,36 @@ public class Epub {
         }
 
         return "";
+    }
+
+    public void extractTemporaryImages() {
+
+    }
+
+    /**
+     * Extracts the image contents of this .epub to a temporary directory.
+     *
+     * <p>
+     * While most operations (reading cover images, loading pages, and getting order) can be done without opening the jar,
+     *  images loaded in HTML files will not properly load, and there is no sane way to bypass this while keeping
+     *  the images in the jar without replacing the paths at runtime and only extracting the images.
+     */
+    private void extractImages() {
+        // TODO: other image types?
+        find(path -> path.toString().endsWith(".png") || path.toString().endsWith(".jpg")).forEach(path -> {
+            new Thread(() -> {
+                try {
+                    String imagesPath = getImageDirectory().toString();
+                    Files.createDirectories(Paths.get(imagesPath));
+                    Path target = Paths.get(imagesPath, path.getFileName().toString());
+                    if(!Files.exists(target)) {
+                        Files.copy(path, target);
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }).start();
+        });
     }
 
     @Nullable

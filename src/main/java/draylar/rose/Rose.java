@@ -3,15 +3,12 @@ package draylar.rose;
 import draylar.rose.api.Epub;
 import draylar.rose.api.HTMLHelper;
 import draylar.rose.api.HeightHelper;
-import draylar.rose.api.JavaBridge;
 import draylar.rose.api.web.WebViewHelper;
 import draylar.rose.fx.BookIconNode;
 import draylar.rose.fx.Sidebar;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.concurrent.Worker;
 import javafx.fxml.FXMLLoader;
-import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.ScrollPane;
@@ -19,23 +16,22 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
-import netscape.javascript.JSObject;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class Rose extends Application {
@@ -190,6 +186,16 @@ public class Rose extends Application {
         BorderPane finalRoot = root;
         epub.getSpine().forEach(entry -> {
             String html = epub.readSection(entry);
+
+            // Replace all references to images ("src...") with references to extracted images.
+            Pattern pattern = Pattern.compile("src=\"([^\"]+)\"");
+            Matcher matcher = pattern.matcher(html);
+            html = matcher.replaceAll(result -> {
+                String group = result.group(1);
+                URI x = Paths.get(epub.getImageDirectory().toString(), group.substring(group.lastIndexOf("/") + 1)).toUri();
+                return String.format("src=\"%s\"", x);
+            });
+
             String template = HTMLHelper.getTemplate(html);
             HeightHelper helper = new HeightHelper();
             pages.clear();
