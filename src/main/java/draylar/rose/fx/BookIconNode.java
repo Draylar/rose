@@ -5,6 +5,7 @@ import draylar.rose.api.Epub;
 import draylar.rose.api.EpubMetadata;
 import javafx.animation.Interpolator;
 import javafx.animation.ScaleTransition;
+import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
@@ -13,56 +14,58 @@ import javafx.util.Duration;
 import org.imgscalr.Scalr;
 
 import java.awt.image.BufferedImage;
-import java.util.Random;
 
 public class BookIconNode extends VBox {
 
-    private final ImageView coverImageView;
+    private ImageView coverImageView;
     private final Epub book;
 
     public BookIconNode(Epub book) {
         this.book = book;
-        BufferedImage image = book.getCoverImage();
-        EpubMetadata metadata = book.getMetadata();
 
-        // JavaFX ImageView downscaling is very bad.
-        // To get around this, we manually downscale our images using imgscalr (https://github.com/rkalla/imgscalr).
-        if (image != null) {
-            image = Scalr.resize(image, 95, 142);
-        }
+        new Thread(() -> {
+            BufferedImage image = book.getCoverImage();
+            EpubMetadata metadata = book.getMetadata();
 
-        // Initialize book cover properties if it was properly loaded.
-        if (image != null) {
-            this.coverImageView = new ImageView(SwingFXUtils.toFXImage(image, null));
-        } else {
-            // TODO: in the future, this should load in an invalid cover image (such as a red book with an 'X' through it).
-            this.coverImageView = new ImageView();
-        }
+            // JavaFX ImageView downscaling is very bad.
+            // To get around this, we manually downscale our images using imgscalr (https://github.com/rkalla/imgscalr).
+            if (image != null) {
+                image = Scalr.resize(image, 95, 142);
+            }
 
-        // setup image properties
-        this.coverImageView.setPreserveRatio(true);
-        this.coverImageView.setFitWidth(200);
-        this.coverImageView.setFitHeight(142);
-        this.coverImageView.setSmooth(true);
+            // Initialize book cover properties if it was properly loaded.
+            if (image != null) {
+                this.coverImageView = new ImageView(SwingFXUtils.toFXImage(image, null));
+            } else {
+                // TODO: in the future, this should load in an invalid cover image (such as a red book with an 'X' through it).
+                this.coverImageView = new ImageView();
+            }
 
-        initializeHoverHandlers();
-        initializeOpenHandler();
+            // setup image properties
+            this.coverImageView.setPreserveRatio(true);
+            this.coverImageView.setFitWidth(200);
+            this.coverImageView.setFitHeight(142);
+            this.coverImageView.setSmooth(true);
 
-        // Add the cover view image to 'this' VBox as the first/top element.
-        getChildren().add(coverImageView);
-        this.coverImageView.setStyle("-fx-cursor: hand;");
+            initializeHoverHandlers();
+            initializeOpenHandler();
 
-        // add title & author underneath image
-        if (metadata != null) {
-            Label e = new Label(metadata.getTitle());
-            e.setWrapText(true);
-            getChildren().add(e);
-        }
+            // Add elements to this node and adjust styles on the JavaFX thread
+            Platform.runLater(() -> {
+                getChildren().add(coverImageView);
+                this.coverImageView.setStyle("-fx-cursor: hand;");
 
-        this.maxWidthProperty().bind(coverImageView.fitWidthProperty().multiply(.70f));
+                // add title & author underneath image
+                if (metadata != null) {
+                    Label titleLabel = new Label(metadata.getTitle());
+                    titleLabel.setWrapText(true);
+                    getChildren().add(titleLabel);
+                }
 
-        // cursor on hover
-//        setStyle("-fx-background-color: #" + new Random().nextInt(1_000_000) + ";");
+                this.maxWidthProperty().bind(coverImageView.fitWidthProperty().multiply(.70f));
+            });
+
+        }).start();
     }
 
     // When the ImageView (cover/icon) of this book icon node is hovered over,
@@ -93,7 +96,7 @@ public class BookIconNode extends VBox {
 
     public void initializeOpenHandler() {
         coverImageView.setOnMouseClicked(event -> {
-            if(event.getClickCount() == 2) {
+            if (event.getClickCount() == 2) {
                 Rose.open(book);
             }
         });
