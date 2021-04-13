@@ -12,6 +12,9 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
+import org.imgscalr.Scalr;
+
+import java.awt.image.BufferedImage;
 
 public class Sidebar extends VBox {
 
@@ -33,7 +36,8 @@ public class Sidebar extends VBox {
         setAlignment(Pos.TOP_CENTER);
 
         // generic image
-        ImageView image = new ImageView(SwingFXUtils.toFXImage(epub.getCoverImage(), null));
+        BufferedImage resized = Scalr.resize(epub.getCoverImage(), 250, 250);
+        ImageView image = new ImageView(SwingFXUtils.toFXImage(resized, null));
         image.setFitHeight(250.0);
         image.setFitWidth(200);
         image.setPickOnBounds(true);
