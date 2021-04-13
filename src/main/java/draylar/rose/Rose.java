@@ -15,8 +15,8 @@ import javafx.scene.control.ScrollBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.skin.ScrollPaneSkin;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
@@ -41,7 +41,9 @@ public class Rose extends Application {
     public static final Path ROSE_LIBRARY_PATH = Paths.get(System.getProperty("user.home"), "Rose Library");
     public static final Path ROSE_LIBRARY_DATA_PATH = Paths.get(System.getProperty("user.home"), "Rose Library", "Data");
     public static final Logger LOGGER = Logger.getLogger("Rose");
+    public static Parent home;
     public static Scene scene;
+    public static int page = 0;
     public static final List<WebView> pages = new ArrayList<>();
 
     private List<Epub> loaded = new ArrayList<>();
@@ -51,8 +53,8 @@ public class Rose extends Application {
         initializeRoseLibraryFolder();
 
         // initialize UI
-        Parent root = FXMLLoader.load(getClass().getClassLoader().getResource("root.fxml"));
-        scene = new Scene(root, 1350, 900);
+        home = FXMLLoader.load(getClass().getClassLoader().getResource("root.fxml"));
+        scene = new Scene(home, 1350, 900);
         stage.setTitle("Rose");
         stage.setMinWidth(500);
         stage.setScene(scene);
@@ -112,23 +114,6 @@ public class Rose extends Application {
             }).start();
         });
 
-        // The standard ScrollPane scrolling is too slow for our application. Speed it up!
-        ScrollPane scrollable = (ScrollPane) scene.lookup("#scrollableContent");
-        scrollable.getContent().setOnScroll(event -> {
-            double delta = event.getDeltaY() * 0.00001;
-            scrollable.setVvalue(scrollable.getVvalue() - delta);
-        });
-
-        ScrollBar scrollBar = (ScrollBar) scene.lookup("#scrollBar");
-        ScrollBar verticalScrollBar = ((ScrollPaneSkin) scrollable.getSkin()).getVerticalScrollBar();
-
-        // adjust scroll bar max
-        scrollBar.setMax(1);
-
-        // bind our custom scrollbar to the invisible one inside our content pane
-        scrollBar.valueProperty().bindBidirectional(verticalScrollBar.valueProperty());
-
-
         // load
         stage.show();
     }
@@ -172,8 +157,12 @@ public class Rose extends Application {
         }
     }
 
+    public static void home() {
+        scene.setRoot(home);
+    }
+
     public static void open(Epub epub) {
-        BorderPane root = null;
+        GridPane root = null;
 
         // Attempt to load the read.fxml file.
         // TODO: error handling/response for the user to see if something goes wrong?
@@ -195,7 +184,7 @@ public class Rose extends Application {
 
         // Find the HTML document.
         // TODO: more than 1 spine entry
-        BorderPane finalRoot = root;
+        GridPane finalRoot = root;
         epub.getSpine().forEach(entry -> {
             String html = epub.readSection(entry);
 
@@ -221,15 +210,19 @@ public class Rose extends Application {
 
                 // setup first page
                 if(!pages.isEmpty()) {
-                    finalRoot.setCenter(pages.get(0));
+                    finalRoot.add(pages.get(0), 1, 0);
                 }
             });
 
             finalRoot.setOnKeyPressed(key -> {
                 if(key.getCode().equals(KeyCode.LEFT)) {
-                    finalRoot.setCenter(pages.get(Math.max(0, pages.indexOf(finalRoot.getCenter()) - 1)));
+                    finalRoot.getChildren().remove(1);
+                    page = Math.max(0, page - 1);
+                    finalRoot.add(pages.get(page), 1, 0);
                 } else if (key.getCode().equals(KeyCode.RIGHT)) {
-                    finalRoot.setCenter(pages.get(Math.min(pages.size() - 1, pages.indexOf(finalRoot.getCenter()) + 1)));
+                    finalRoot.getChildren().remove(1);
+                    page = Math.min(pages.size() - 1, page + 1);
+                    finalRoot.add(pages.get(page), 1, 0);
                 }
             });
         });
