@@ -75,7 +75,7 @@
       </VBox>
       <HBox id="sidebar" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1">
          <children>
-            <ScrollBar orientation="VERTICAL" />
+            <ScrollBar id="scrollBar" orientation="VERTICAL" />
          </children>
       </HBox>
    </children>

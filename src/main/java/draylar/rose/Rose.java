@@ -11,7 +11,9 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.skin.ScrollPaneSkin;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
@@ -113,9 +115,19 @@ public class Rose extends Application {
         // The standard ScrollPane scrolling is too slow for our application. Speed it up!
         ScrollPane scrollable = (ScrollPane) scene.lookup("#scrollableContent");
         scrollable.getContent().setOnScroll(event -> {
-            double delta = event.getDeltaY() * 0.01;
+            double delta = event.getDeltaY() * 0.00001;
             scrollable.setVvalue(scrollable.getVvalue() - delta);
         });
+
+        ScrollBar scrollBar = (ScrollBar) scene.lookup("#scrollBar");
+        ScrollBar verticalScrollBar = ((ScrollPaneSkin) scrollable.getSkin()).getVerticalScrollBar();
+
+        // adjust scroll bar max
+        scrollBar.setMax(1);
+
+        // bind our custom scrollbar to the invisible one inside our content pane
+        scrollBar.valueProperty().bindBidirectional(verticalScrollBar.valueProperty());
+
 
         // load
         stage.show();
