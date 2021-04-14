@@ -205,7 +205,7 @@ public class Rose extends Application {
             // Create a task to calculate the pages from our HTML.
             // This future is stored in a list so we can reference it later.
             HeightHelper helper = new HeightHelper();
-            CompletableFuture<Pair<SpineEntry, String[]>> future = helper.calculatePages(entry, html, finalRoot.getHeight() * .90f, finalRoot.getWidth() * .6);
+            CompletableFuture<Pair<SpineEntry, String[]>> future = helper.calculatePages(entry, html, finalRoot.getHeight() * .85f, finalRoot.getWidth() * .6);
             futures.add(future);
 
             // Debug log
