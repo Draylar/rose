@@ -101,7 +101,28 @@ public class HeightHelper {
                                                                 
                                         // Still have elements to process and we are under 500 length. Append it to the current list.
                                         else if (size < height) {
-                                            currentElements.push(element);
+                                            
+                                            // Images are always on a new page, because offsetHeight does not properly return their height
+                                            if(element.includes("img")) {
+                                                console.log("found");
+                                                
+                                                // no elements so far, stop the page here
+                                                if(currentElements.length == 0) {
+                                                    currentElements.push(element);
+                                                    pages.push(currentElements.join(""));
+                                                    currentElements = []
+                                                }
+                                                
+                                                // already has an element, save that as a page and keep going
+                                                else {
+                                                    pages.push(currentElements.join(""));
+                                                    currentElements = []
+                                                    splitData.unshift(element); // re-add element for next iteration
+                                                }
+                                                
+                                            } else {
+                                                currentElements.push(element);
+                                            }
                                         }
                                        
                                         // Over 500 with more elements to go-- push and go again. Do not append the current element to prevent overflow.
