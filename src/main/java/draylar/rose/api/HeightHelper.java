@@ -104,7 +104,6 @@ public class HeightHelper {
                                             
                                             // Images are always on a new page, because offsetHeight does not properly return their height
                                             if(element.includes("img")) {
-                                                console.log("found");
                                                 
                                                 // no elements so far, stop the page here
                                                 if(currentElements.length == 0) {
