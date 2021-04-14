@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -39,7 +38,6 @@ public class Rose extends Application {
 
     public static final Path ROSE_LIBRARY_PATH = Paths.get(System.getProperty("user.home"), "Rose Library");
     public static final Path ROSE_LIBRARY_DATA_PATH = Paths.get(System.getProperty("user.home"), "Rose Library", "Data");
-    public static final Logger LOGGER = Logger.getLogger("Rose");
     public static Parent home;
     public static Scene scene;
     public static int page = 0;
@@ -108,7 +106,7 @@ public class Rose extends Application {
                     });
                 } else {
                     // TODO: still add book, but have invalid cover/warning marker on it?
-                    LOGGER.warning(String.format("content.opf could not be read from %s. Is the file a valid .epub? Skipping to the next book.", path.getFileName()));
+                    System.out.println(String.format("content.opf could not be read from %s. Is the file a valid .epub? Skipping to the next book.", path.getFileName()));
                 }
             }).start();
         });
@@ -210,6 +208,9 @@ public class Rose extends Application {
             CompletableFuture<Pair<SpineEntry, String[]>> future = helper.calculatePages(entry, html, finalRoot.getHeight() * .90f, finalRoot.getWidth() * .6);
             futures.add(future);
 
+            // Debug log
+            System.out.printf("Loading %s.\n", entry.getIdref());
+
             // When the future is finished calculating the pages for this particular entry in the book,
             //   we iterate over each page and add a WebView element representing the page to our screen.
             // Additional setup for individual pages also occurs here.
@@ -225,7 +226,7 @@ public class Rose extends Application {
                     finalRoot.add(pages.get(0), 1, 0);
                 }
 
-                LOGGER.info(String.format("%s has loaded! Time taken: " + (System.currentTimeMillis() - start) + "ms", result.getKey().getIdref()));
+                System.out.printf("%s has loaded! Time taken: " + (System.currentTimeMillis() - start) + "ms%n", result.getKey().getIdref());
             });
 
             // Setup arrow-key click events for traversing through pages.
@@ -250,7 +251,7 @@ public class Rose extends Application {
         // Once this future is done, we log a message.
         CompletableFuture<Void> finished = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
         finished.thenAccept(unused -> {
-            LOGGER.info("All sections have loaded! Time taken: " + (System.currentTimeMillis() - start) + "ms");
+            System.out.println("All sections have loaded! Time taken: " + (System.currentTimeMillis() - start) + "ms");
         });
     }
 }

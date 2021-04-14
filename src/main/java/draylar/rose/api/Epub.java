@@ -244,7 +244,7 @@ public class Epub {
             }
         }
 
-        Rose.LOGGER.warning(String.format("Failed to save cover image for %s.", root.getFileName().toString()));
+        System.out.printf("Failed to save cover image for %s.%n", root.getFileName().toString());
         return null;
     }
 
