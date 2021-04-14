@@ -16,5 +16,9 @@ public class ReadController {
     public void initialize() {
         // When the home button is clicked, swap back to the main application screen.
         homeButton.setOnMouseClicked(event -> Rose.home());
+
+        // Exclude the home button from accessibility/arrow-key traversing.
+        // Without this, the arrow keys will focus on the home button instead of swapping pages.
+        homeButton.setFocusTraversable(false);
     }
 }
