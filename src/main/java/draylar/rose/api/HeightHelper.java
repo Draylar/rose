@@ -15,69 +15,40 @@ public class HeightHelper {
     private final WebView throwaway = new WebView();
 
     public HeightHelper() {
-        // Load standard CSS styling for proper spacing and font sizes
         throwaway.getEngine().setUserStyleSheetLocation(Rose.class.getClassLoader().getResource("style/main.css").toString());
     }
 
-    public CompletableFuture<Integer> getHeight(List<String> elements) {
-        CompletableFuture<Integer> ret = new CompletableFuture<>();
-
-        throwaway.getEngine().getLoadWorker().stateProperty().addListener((value, old, newState) -> {
-            if(newState == Worker.State.SUCCEEDED) {
-                JSObject window = (JSObject) throwaway.getEngine().executeScript("window");
-                window.setMember("java", new JavaBridge());
-                window.setMember("data", elements.toString().replace("[", "").replace("]", ""));
-
-                // create initial function
-                throwaway.getEngine().executeScript(
-                        """
-                        function getNext() {
-                            const div = document.createElement("div");
-
-                            const values = data.split(", ");
-                            for(var i = 0; i < values.length; i++) {
-                                div.innerHTML += values[i];
-                            }
-
-                            document.body.appendChild(div);
-                            div.style.height = "";
-                            return div.offsetHeight;
-                        }
-                        """
-                );
-
-                ret.complete((int) throwaway.getEngine().executeScript("getNext()"));
-            }
-        });
-
-
-        // force-load the webview
-        throwaway.getEngine().loadContent("");
-
-        return ret;
-    }
-
-    // return a completablefuture that describes a collection of page contents
-    public CompletableFuture<Pair<SpineEntry, String[]>> get(SpineEntry entry, String html, double height, double width) {
+    /**
+     * Returns a {@link CompletableFuture} providing a {@code String[]}, where each element represents a single page from the provided HTML content.
+     *
+     * <p>
+     * Each page will approximately span the height of the screen, but will not surpass it.
+     *
+     * @param entry current TOC entry being operated on for return context
+     * @param html full HTML content to process into pages
+     * @param height height of each page
+     * @param width width of each page
+     * @return  a {@link CompletableFuture} that provides pages derived from the passed in HTML document
+     */
+    public CompletableFuture<Pair<SpineEntry, String[]>> calculatePages(SpineEntry entry, String html, double height, double width) {
         CompletableFuture<Pair<SpineEntry, String[]>> ret = new CompletableFuture<>();
-
-        List<String> all = HTMLHelper.getBody(html);
+        List<String> bodyElements = HTMLHelper.getBody(html);
 
         throwaway.getEngine().getLoadWorker().stateProperty().addListener((value, old, newState) -> {
             if(newState == Worker.State.SUCCEEDED) {
                 JSObject window = (JSObject) throwaway.getEngine().executeScript("window");
                 window.setMember("java", new JavaBridge());
-                window.setMember("allData", String.join("%and%", all)); // TODO: better way to pass a list?
+                window.setMember("allData", String.join("%and%", bodyElements)); // TODO: better way to pass a list?
                 window.setMember("height", height);
                 window.setMember("width", width);
-//
-//                // override JS logging to redirect to our logger
+
+                // Override the standard JavaScript log method to redirect to our Java Bridge.
                 throwaway.getEngine().executeScript("console.log = function(message)\n" +
                         "{\n" +
                         "    java.log(message);\n" +
                         "};");
 
-                // create initial function
+                // Define the JS functions for calculating pages from passed in HTML content.
                 throwaway.getEngine().executeScript(
                         """
                                 var splitData = ""
