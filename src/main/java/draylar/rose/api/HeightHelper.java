@@ -12,7 +12,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class HeightHelper {
 
-    private final WebView throwaway = new WebView();
+    private final static WebView throwaway = new WebView();
 
     public HeightHelper() {
         throwaway.getEngine().setUserStyleSheetLocation(Rose.class.getClassLoader().getResource("style/main.css").toString());

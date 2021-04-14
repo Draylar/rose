@@ -216,7 +216,8 @@ public class Rose extends Application {
             // Additional setup for individual pages also occurs here.
             future.thenAccept(result -> {
                 for(String page : result.getValue()) {
-                    WebView from = WebViewHelper.from(String.format(template, page));
+                    // TODO: this will break very heavily as soon as a book has %s in it
+                    WebView from = WebViewHelper.from(template.replace("%s", page));
                     from.maxWidthProperty().bind(finalRoot.widthProperty().multiply(.6));
                     pages.add(from);
                 }
@@ -227,6 +228,9 @@ public class Rose extends Application {
                 }
 
                 System.out.printf("%s has loaded! Time taken: " + (System.currentTimeMillis() - start) + "ms%n", result.getKey().getIdref());
+            }).exceptionally(error -> {
+                error.printStackTrace();
+                return null;
             });
 
             // Setup arrow-key click events for traversing through pages.
@@ -244,6 +248,8 @@ public class Rose extends Application {
                     page = Math.min(pages.size() - 1, page + 1);
                     finalRoot.add(pages.get(page), 1, 0);
                 }
+
+                key.consume();
             });
         });
 
