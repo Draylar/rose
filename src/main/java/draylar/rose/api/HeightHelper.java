@@ -1,8 +1,10 @@
 package draylar.rose.api;
 
 import draylar.rose.Rose;
+import draylar.rose.api.book.SpineEntry;
 import javafx.concurrent.Worker;
 import javafx.scene.web.WebView;
+import javafx.util.Pair;
 import netscape.javascript.JSObject;
 
 import java.util.List;
@@ -10,7 +12,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class HeightHelper {
 
-    private WebView throwaway = new WebView();
+    private final WebView throwaway = new WebView();
 
     public HeightHelper() {
         // Load standard CSS styling for proper spacing and font sizes
@@ -56,8 +58,8 @@ public class HeightHelper {
     }
 
     // return a completablefuture that describes a collection of page contents
-    public CompletableFuture<String[]> get(String html, double height, double width) {
-        CompletableFuture<String[]> ret = new CompletableFuture<>();
+    public CompletableFuture<Pair<SpineEntry, String[]>> get(SpineEntry entry, String html, double height, double width) {
+        CompletableFuture<Pair<SpineEntry, String[]>> ret = new CompletableFuture<>();
 
         List<String> all = HTMLHelper.getBody(html);
 
@@ -146,7 +148,7 @@ public class HeightHelper {
                 throwaway.getEngine().executeScript("loadData();");
                 String s = throwaway.getEngine().executeScript("splitIntoPages()").toString();
                 String[] result = s.split("%page%");
-                ret.complete(result);
+                ret.complete(new Pair<>(entry, result));
             }
         });
 

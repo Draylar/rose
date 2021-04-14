@@ -3,6 +3,7 @@ package draylar.rose;
 import draylar.rose.api.Epub;
 import draylar.rose.api.HTMLHelper;
 import draylar.rose.api.HeightHelper;
+import draylar.rose.api.book.SpineEntry;
 import draylar.rose.api.web.WebViewHelper;
 import draylar.rose.fx.BookIconNode;
 import draylar.rose.fx.Sidebar;
@@ -11,15 +12,13 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.ScrollBar;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.skin.ScrollPaneSkin;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
+import javafx.util.Pair;
 
 import java.io.IOException;
 import java.net.URI;
@@ -175,20 +174,25 @@ public class Rose extends Application {
         // Update the root of the Rose JavaFX window to display our epub content.
         scene.setRoot(root);
 
-        // get vbox from display scene
+       // Force-apply CSS so our search-by-id operations work later on
         root.applyCss();
 
-        // When the .epub is loaded, we need to create a list of WebView, each of which describe a single page inside the application.
-
+        // Keep track of all pages & all futures
         List<WebView> pages = new ArrayList<>();
-
-        // Find the HTML document.
-        // TODO: more than 1 spine entry
+        List<CompletableFuture<Pair<SpineEntry, String[]>>> futures = new ArrayList<>();
         GridPane finalRoot = root;
+
+        // Start timer
+        long start = System.currentTimeMillis();
+
+        // For each TOC entry in this epub, calculate pages...
         epub.getSpine().forEach(entry -> {
             String html = epub.readSection(entry);
 
-            // Replace all references to images ("src...") with references to extracted images.
+            // HTML files have src/image tags that reference images from their perspective/directory.
+            // Because our HTML file is ""moved"", the references do not link to images properly.
+            // To fix this, we reference saved images which were extracted earlier in the loading pipeline.
+            // Each src attribute is replaced with a src reference to the same local file in the data directory.
             Pattern pattern = Pattern.compile("src=\"([^\"]+)\"");
             Matcher matcher = pattern.matcher(html);
             html = matcher.replaceAll(result -> {
@@ -197,34 +201,56 @@ public class Rose extends Application {
                 return String.format("src=\"%s\"", x);
             });
 
+            // Retrieve the template (HTML without the body) from the current spine entry.
             String template = HTMLHelper.getTemplate(html);
+
+            // Create a task to calculate the pages from our HTML.
+            // This future is stored in a list so we can reference it later.
             HeightHelper helper = new HeightHelper();
-            pages.clear();
-            CompletableFuture<String[]> completableFuture = helper.get(html, finalRoot.getHeight() * .90f, finalRoot.getWidth() * .6);
-            completableFuture.thenAccept(result -> {
-                for(String page : result) {
+            CompletableFuture<Pair<SpineEntry, String[]>> future = helper.get(entry, html, finalRoot.getHeight() * .90f, finalRoot.getWidth() * .6);
+            futures.add(future);
+
+            // When the future is finished calculating the pages for this particular entry in the book,
+            //   we iterate over each page and add a WebView element representing the page to our screen.
+            // Additional setup for individual pages also occurs here.
+            future.thenAccept(result -> {
+                for(String page : result.getValue()) {
                     WebView from = WebViewHelper.from(String.format(template, page));
                     from.maxWidthProperty().bind(finalRoot.widthProperty().multiply(.6));
                     pages.add(from);
                 }
 
-                // setup first page
-                if(!pages.isEmpty()) {
+                // If the SpineEntry is the first one in this epub's TOC, load the first page now.
+                if(epub.getSpine().indexOf(result.getKey()) == 0 && !pages.isEmpty()) {
                     finalRoot.add(pages.get(0), 1, 0);
                 }
+
+                LOGGER.info(String.format("%s has loaded! Time taken: " + (System.currentTimeMillis() - start) + "ms", result.getKey().getIdref()));
             });
 
+            // Setup arrow-key click events for traversing through pages.
             finalRoot.setOnKeyPressed(key -> {
+                // Left-key => go one page back
                 if(key.getCode().equals(KeyCode.LEFT)) {
                     finalRoot.getChildren().remove(1);
                     page = Math.max(0, page - 1);
                     finalRoot.add(pages.get(page), 1, 0);
-                } else if (key.getCode().equals(KeyCode.RIGHT)) {
+                }
+
+                // Right-key => go one page forwards
+                else if (key.getCode().equals(KeyCode.RIGHT)) {
                     finalRoot.getChildren().remove(1);
                     page = Math.min(pages.size() - 1, page + 1);
                     finalRoot.add(pages.get(page), 1, 0);
                 }
             });
+        });
+
+        // Create a future that depends on all entries completing.
+        // Once this future is done, we log a message.
+        CompletableFuture<Void> finished = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        finished.thenAccept(unused -> {
+            LOGGER.info("All sections have loaded! Time taken: " + (System.currentTimeMillis() - start) + "ms");
         });
     }
 }
