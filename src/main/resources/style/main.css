@@ -1,9 +1,9 @@
 html, body {
     max-width: 100%;
-    overflow-x: hidden;
     font-size: 20px;
-    background-color: #d9d9d9;
-    padding-top: 25px;
+    background-color: 0xffffff;
+    margin: 0px !important;
+    padding: 0px !important;
 }
 
 #sidebarContent {
@@ -14,4 +14,17 @@ html, body {
 p {
     margin: 5px;
     text-indent: 50px;
+}
+
+img {
+    all: unset !important;
+    border-radius: 25;
+    width: unset !important;
+    height: unset !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    top: 0px !important;
+    left: 0px !important;
 }
