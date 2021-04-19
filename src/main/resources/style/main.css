@@ -1,7 +1,7 @@
 html, body {
     max-width: 100%;
     font-size: 20px;
-    background-color: 0xffffff;
+    background-color: #ffffff;
     margin: 0px !important;
     padding: 0px !important;
 }
@@ -13,7 +13,7 @@ html, body {
 
 p {
     margin: 5px;
-    text-indent: 50px;
+    text-indent: 0px;
 }
 
 img {
@@ -25,6 +25,6 @@ img {
     max-height: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    top: 0px !important;
-    left: 0px !important;
+    top: 0 !important;
+    left: 0 !important;
 }
