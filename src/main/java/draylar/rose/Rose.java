@@ -1,5 +1,7 @@
 package draylar.rose;
 
+import com.mohamnag.fxwebview_debugger.DevToolsDebuggerServer;
+import com.sun.javafx.scene.web.Debugger;
 import draylar.rose.api.Epub;
 import draylar.rose.api.HTMLHelper;
 import draylar.rose.api.HeightHelper;
@@ -16,11 +18,13 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.util.Pair;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -41,7 +45,6 @@ public class Rose extends Application {
     public static Parent home;
     public static Scene scene;
     public static int page = 0;
-    public static final List<WebView> pages = new ArrayList<>();
 
     private List<Epub> loaded = new ArrayList<>();
 
@@ -176,12 +179,27 @@ public class Rose extends Application {
         root.applyCss();
 
         // Keep track of all pages & all futures
-        List<WebView> pages = new ArrayList<>();
+        List<String> pages = new ArrayList<>();
         List<CompletableFuture<Pair<SpineEntry, String[]>>> futures = new ArrayList<>();
         GridPane finalRoot = root;
 
         // Start timer
         long start = System.currentTimeMillis();
+
+        // create webview
+        WebView view = WebViewHelper.from("");
+        root.add(view, 1, 0);
+
+        // debug
+        try {
+            Class webEngineClazz = WebEngine.class;
+            Field debuggerField = webEngineClazz.getDeclaredField("debugger");
+            debuggerField.setAccessible(true);
+            Debugger debugger = (Debugger) debuggerField.get(view.getEngine());
+            DevToolsDebuggerServer.startDebugServer(debugger, 51742);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         // For each TOC entry in this epub, calculate pages...
         epub.getSpine().forEach(entry -> {
@@ -217,14 +235,12 @@ public class Rose extends Application {
             future.thenAccept(result -> {
                 for(String page : result.getValue()) {
                     // TODO: this will break very heavily as soon as a book has %s in it
-                    WebView from = WebViewHelper.from(template.replace("%s", page));
-                    from.maxWidthProperty().bind(finalRoot.widthProperty().multiply(.6));
-                    pages.add(from);
+                    pages.add(template.replace("%s", page));
                 }
 
                 // If the SpineEntry is the first one in this epub's TOC, load the first page now.
                 if(epub.getSpine().indexOf(result.getKey()) == 0 && !pages.isEmpty()) {
-                    finalRoot.add(pages.get(0), 1, 0);
+                    view.getEngine().load(pages.get(0));
                 }
 
                 System.out.printf("%s has loaded! Time taken: " + (System.currentTimeMillis() - start) + "ms%n", result.getKey().getIdref());
@@ -237,16 +253,14 @@ public class Rose extends Application {
             finalRoot.setOnKeyPressed(key -> {
                 // Left-key => go one page back
                 if(key.getCode().equals(KeyCode.LEFT)) {
-                    finalRoot.getChildren().remove(1);
                     page = Math.max(0, page - 1);
-                    finalRoot.add(pages.get(page), 1, 0);
+                    view.getEngine().loadContent(pages.get(page));
                 }
 
                 // Right-key => go one page forwards
                 else if (key.getCode().equals(KeyCode.RIGHT)) {
-                    finalRoot.getChildren().remove(1);
                     page = Math.min(pages.size() - 1, page + 1);
-                    finalRoot.add(pages.get(page), 1, 0);
+                    view.getEngine().loadContent(pages.get(page));
                 }
 
                 key.consume();
@@ -259,5 +273,11 @@ public class Rose extends Application {
         finished.thenAccept(unused -> {
             System.out.println("All sections have loaded! Time taken: " + (System.currentTimeMillis() - start) + "ms");
         });
+    }
+
+    @Override
+    public void stop() throws Exception {
+        DevToolsDebuggerServer.stopDebugServer();
+        super.stop();
     }
 }

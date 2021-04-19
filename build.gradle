@@ -20,6 +20,7 @@ repositories {
 dependencies {
     implementation 'com.github.rkalla:imgscalr:4.2-release'
     implementation 'nu.validator.htmlparser:htmlparser:1.4'
+    compile 'com.mohamnag:javafx-webview-debugger:0.0.1'
 
     compile 'org.jetbrains:annotations:16.0.2'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0'
