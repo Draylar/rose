@@ -11,18 +11,11 @@ html, body {
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 1, 0);
 }
 
-p {
-    margin: 5px;
-    text-indent: 0px;
-}
-
 img {
-    all: unset !important;
-    border-radius: 25;
     width: unset !important;
     height: unset !important;
     max-width: 100% !important;
-    max-height: 100% !important;
+    max-height: 900px !important;
     margin: 0 !important;
     padding: 0 !important;
     top: 0 !important;
