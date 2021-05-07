@@ -2,6 +2,7 @@ package draylar.rose.api;
 
 import draylar.rose.Rose;
 import draylar.rose.api.book.SpineEntry;
+import javafx.application.Platform;
 import javafx.concurrent.Worker;
 import javafx.scene.web.WebView;
 import javafx.util.Pair;
@@ -36,12 +37,6 @@ public class HeightHelper {
 
         throwaway.getEngine().getLoadWorker().stateProperty().addListener((value, old, newState) -> {
             if(newState == Worker.State.SUCCEEDED) {
-                JSObject window = (JSObject) throwaway.getEngine().executeScript("window");
-                window.setMember("java", new JavaBridge());
-                window.setMember("allData", String.join("%and%", bodyElements)); // TODO: better way to pass a list?
-                window.setMember("height", height);
-                window.setMember("width", width);
-
                 // Override the standard JavaScript log method to redirect to our Java Bridge.
                 throwaway.getEngine().executeScript("console.log = function(message)\n" +
                         "{\n" +
@@ -52,22 +47,29 @@ public class HeightHelper {
                 throwaway.getEngine().executeScript(
                         """
                                 var splitData = ""
+                                var fragment = document.createDocumentFragment()
                                                         
                                 function loadData() {
                                     splitData = allData.split("%and%");
                                 }
                                                         
                                 function getSize(data) { // data is a list of string tags
-                                    const div = document.createElement("div");
-                                                                
-                                    for(var i = 0; i < data.length; i++) {
-                                        div.innerHTML += data[i];
+                                     // clear current body
+                                     document.body.innerHTML = ""
+                                    
+                                     // add
+                                    const d = document.createElement("div")
+                                    for (var i = 0; i < data.length; i++) {
+                                        d.innerHTML += data[i]
                                     }
-                                                                
-                                    document.body.appendChild(div);
-                                    div.style.height = "";
-                                    div.style.width = width;
-                                    return div.offsetHeight;
+                                    fragment.appendChild(d)
+                                    
+                                    // reset style
+                                    d.style.height = "";
+                                    d.style.width = width;
+                                    
+                                    document.body.appendChild(fragment)
+                                    return d.offsetHeight;
                                 }
                                                         
                                 function splitIntoPages() {
@@ -136,10 +138,21 @@ public class HeightHelper {
                                 """
                 );
 
-                throwaway.getEngine().executeScript("loadData();");
-                String s = throwaway.getEngine().executeScript("splitIntoPages()").toString();
-                String[] result = s.split("%page%");
-                ret.complete(new Pair<>(entry, result));
+                Platform.runLater(() -> {
+                    // initialize data
+                    JSObject window = (JSObject) throwaway.getEngine().executeScript("window");
+                    window.setMember("java", new JavaBridge());
+                    window.setMember("allData", String.join("%and%", bodyElements)); // TODO: better way to pass a list?
+                    window.setMember("height", height);
+                    window.setMember("width", width);
+
+                    // call methods to calculate size
+                    throwaway.getEngine().executeScript("loadData();");
+                    String s = throwaway.getEngine().executeScript("splitIntoPages()").toString();
+                    String[] result = s.split("%page%");
+                    ret.complete(new Pair<>(entry, result));
+                    System.out.println("hi");
+                });
             }
         });
 
