@@ -11,6 +11,10 @@ html, body {
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 1, 0);
 }
 
+p {
+    text-indent: 15px;
+}
+
 img {
     width: unset !important;
     height: unset !important;
